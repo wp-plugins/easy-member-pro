@@ -31,7 +31,7 @@ Goto Settings -> WP EasyMemberPro -> Add the URL to your EasyMemberPro installat
 
 == Changelog ==
 
-= 1.0 =
+= 0.9 =
 
 * First release
 Saturday, January 5, 2013
