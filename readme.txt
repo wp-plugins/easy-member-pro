@@ -2,7 +2,7 @@
 Contributors: Michael D Price
 Tags: login, Easy Member Pro
 Requires at least: 2.9.0
-Tested up to: 2.9.0
+Tested up to: 3.4.1
 Stable tag: v1.0.0
 
 == Description ==
@@ -31,7 +31,7 @@ Goto Settings -> WP EasyMemberPro -> Add the URL to your EasyMemberPro installat
 
 == Changelog ==
 
-= 0.9 =
+= 1.0.1 =
 
 * First release
 Saturday, January 5, 2013
