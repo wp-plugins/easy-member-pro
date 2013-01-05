@@ -3,7 +3,7 @@ Contributors: Michael D Price
 Tags: login, Easy Member Pro
 Requires at least: 2.9.0
 Tested up to: 2.9.0
-Stable tag: v1.0.0
+Stable tag: 1.0.1
 
 == Description ==
 
