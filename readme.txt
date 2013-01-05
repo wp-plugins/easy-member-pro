@@ -1,5 +1,5 @@
 === wp-Easy Member Pro ===
-Contributors: Anthony Hull
+Contributors: Michael D Price
 Tags: login, Easy Member Pro
 Requires at least: 2.9.0
 Tested up to: 2.9.0
@@ -7,7 +7,9 @@ Stable tag: v1.0.0
 
 == Description ==
 
-An Extension to Easy Member Pro, Extends EasyMemberPro login functionality to Wordpress.
+An Extension to Easy Member Pro.
+Wp-EasyMemberPro is a wordpress plugin that allows you to protect your posts, ensuring that only your logged in members, with the proper membership level,
+can view them.
 
 == Installation ==
 
