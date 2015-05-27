@@ -3,9 +3,9 @@
 Plugin Name: wp-EasyMemberPro!
 Plugin URI: http://www.easymemberpro.com
 Description: An Extension to Easy Member Pro, Allowing the Viewing of Pages and Posts Based on Membership Levels.
-Version: 1.0.1
-Author: Michael Price Jr for EasyMemberPro
-Author URI: http://michaelpricejr.com
+Version: 1.0.2
+Author: EasyMemberPro
+Author URI: http://www.easymemberpro.com
 */
 
 class wp_EasyMemberPro
