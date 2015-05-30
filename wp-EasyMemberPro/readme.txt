@@ -3,13 +3,12 @@ Contributors: Michael D Price
 Tags: login, Easy Member Pro
 Requires at least: 2.9.0
 Tested up to: 4.2
-Stable tag: 1.0.2
+Stable tag: 1.1.0
 
 == Description ==
 
 An Extension to Easy Member Pro.
-Wp-EasyMemberPro is a wordpress plugin that allows you to protect your posts, ensuring that only your logged in members, with the proper membership level,
-can view them.
+Wp-EasyMemberPro is a wordpress plugin that allows you to protect your posts, ensuring that only your logged in members, with the proper membership level, and drip feed options can view them.
 
 == Installation ==
 
@@ -31,7 +30,11 @@ Goto Settings -> WP EasyMemberPro -> Add the URL to your EasyMemberPro installat
 
 == Changelog ==
 
-= 1.0.1 =
+= 1.1.0 =
+Added Drip Feed options
+* First release
+Saturday, May 30, 2015
 
+= 1.0.1 =
 * First release
 Saturday, January 5, 2013
