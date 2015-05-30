@@ -2,8 +2,8 @@
 /*
 Plugin Name: wp-EasyMemberPro!
 Plugin URI: http://www.easymemberpro.com
-Description: An Extension to Easy Member Pro, Allowing the Viewing of Pages and Posts Based on Membership Levels.
-Version: 1.0.2
+Description: An Extension to Easy Member Pro, Allowing for the Viewing of Pages and Posts Based on Membership Levels, and drip feed options.
+Version: 1.1.0
 Author: EasyMemberPro
 Author URI: http://www.easymemberpro.com
 */
@@ -31,7 +31,7 @@ class wp_EasyMemberPro
 
 		define("WPEMP_LOADED" 		, true);
 		define("WPEMP_FILE" 		, __FILE__ );
-		define("WPEMP_VER"		, "1.0.1" );
+		define("WPEMP_VER"		, "1.1.0" );
 
 		register_activation_hook   ( WPEMP_FILE	, array( &$this, 'wpemp_activate'		)); 
 		register_deactivation_hook ( WPEMP_FILE	, array( &$this, 'wpemp_deactivate'		)); // not required //
@@ -71,7 +71,11 @@ class wp_EasyMemberPro
 		ini_set('allow_url_fopen','1');
 		$old_ua = @ ini_get('user_agent');
 		@ ini_set('user_agent','Mozilla/5.0 (Windows; U; Windows NT 6.0; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3');
-		$f = @ fopen('http://www.msn.com', "r");
+		$f = @ fopen('http://localhost.com', "r");
+		
+		if(ini_get('allow_url_fopen')) update_option ("wp_wpemp_fopen", 'on');
+		else update_option ("wp_wpemp_fopen", 'off');
+		/*
 		if( ! $f )
 			update_option ("wp_wpemp_fopen", 'off');
 		else
@@ -79,6 +83,7 @@ class wp_EasyMemberPro
 			@fclose($f);
 			update_option ("wp_wpemp_fopen", 'on');
 		} 
+		*/
 		@ini_set('user_agent',$old_ua);
 		
 		
@@ -370,47 +375,48 @@ check_admin_referer('wpemp-update-options');
 		$post_excerpt = get_post_meta($post->ID, "_wpemp_excerpt", true);
 		
 		
+		// Lets check if Level is required
 		$userlevels = $_SESSION['wpemp_levels'];
-		//die(var_dump($_SESSION));
-		$pos = strpos($userlevels, ',');
-		if ($pos === false) {}
-		else{$userlevels = explode(',',$userlevels);}
+		$postRights = unserialize($post_level);
+		$memberRights = $userlevels;
 		
-		$pos = strpos($post_level, ',');
-		if ($pos === false) {}
-		else{$post_level = explode(',',$post_level);}
 		$approved = 0;
-		if(is_array($post_level)){
-			foreach($post_level as $v){
-				if(is_array($userlevels)){
-					if(in_array($v,$userlevels)){
-						$approved = 1;
-						break;
+		$notEnoughDays = array();
+		if(isset( $_SESSION['user']['email'] )){
+			//die(var_dump($postRights));
+			foreach($postRights as $k=>$v){
+				
+				//die(var_dump($memberRights));
+				$nd = 0;
+				
+				// Lets Check If User Has member Levels
+				if(is_array($memberRights)){
+					foreach($memberRights as $k2 =>$v2){
+					
+					$html .= $v['id'] .'='. $k2;
+					if($v['id'] == $k2){
+						// Found A Matching Assigned Level
+						$html .= 'This is a match<br />';
+						// Check Drip Feed days
+						if($v['days'] <= $v2['days']){$approved = 1;break;}
+						else{
+							
+							$dayDiff = $v['days'] - $v2['days'];
+							$notEnoughDays[$k2]['id'] = $k2;
+							$notEnoughDays[$k2]['by'] = $dayDiff;
+							$nd++;
+
 						}
-					else{$approved = 0;}
-				}
-				else{
-					if($v == $userlevels){$approved = 1;break;}
-					else{$approved = 0;}
-				}
-			}
-		}
-		else{
-			if(is_array($userlevels)){
-				foreach($userlevels as $v){
-					if($v == $post_level){$approved = 1;break;}
-					else{$approved = 0;}
 					}
 				}
-			else{
-				if($userlevels == $post_level){$approved = 1;}
-				else{$approved = 0;}	
-			}	
+					
+				}
+				
+			}
+			//die(var_dump($notEnoughDays));
+			//die(var_dump($notAMember));
 		}
-		
-		
-		
-
+		//die(var_dump($notEnoughDays));
 		// we have nothing, fall back on global options
 		if($post_option == 'none')
 		{
@@ -425,8 +431,9 @@ check_admin_referer('wpemp-update-options');
 				$html .= '<br/><br/>Powered by EasyMemberPro';
 			return $html;
 		}
-		else if( $post_option == 'yes' && !isset( $_SESSION['sUsername'] ) )
+		else if( $post_option == 'yes' && !isset( $_SESSION['user']['email'] ) )
 		{
+			//die(var_dump($_SESSION));
 			$scontent = '';
 			if($post_excerpt == 'yes')
 			{
@@ -434,25 +441,31 @@ check_admin_referer('wpemp-update-options');
 				$scontent = get_the_excerpt();
 				add_filter('the_content', array(&$this, 'wpemp_content'), 100);
 			}
+			//die('No Log In');
 			//die($scontent. $this->wpemp_get_login_box($post->ID));
 			return $scontent. $this->wpemp_get_login_box($post->ID);
 		}
-		else if( $post_option == 'yes' && isset( $_SESSION['sUsername'] ) )
+		else if( $post_option == 'yes' && isset( $_SESSION['user']['email'] ) ){
+			//die(var_dump($memberRights));
+			//die($sContent);
+			//return $sContent;
 			if($approved == 0){
 				$scontent = '';
-			if($post_excerpt == 'yes')
-			{
-				remove_filter('the_content', array( &$this, 'wpemp_content'), 100);
-				$scontent = get_the_excerpt();
-				add_filter('the_content', array(&$this, 'wpemp_content'), 100);
-			}
-			
-			return $scontent. $this->wpemp_get_upgrade_box($post->ID);
+				if($post_excerpt == 'yes'){
+					remove_filter('the_content', array( &$this, 'wpemp_content'), 100);
+					$scontent = get_the_excerpt();
+					add_filter('the_content', array(&$this, 'wpemp_content'), 100);
 				}
+				
+				// Figure Out If Disapproved By Level Or Days
+				if(!empty($notEnoughDays)){
+					return $scontent. $this->wpemp_get_dripfeed_box($notEnoughDays, $notEnoughDays);
+				}
+				return $scontent. $this->wpemp_get_upgrade_box($post->ID);
+			}
 			else{return $content. '<div id="logout" align="right">'.$this->wpemp_get_logout_link().'</div>';}
-
-		else
-			return $content;
+	}
+		else return $content;
 	}
 
 	function wpemp_get_logout_link(){
@@ -479,13 +492,18 @@ check_admin_referer('wpemp-update-options');
 
 	function wpemp_get_login_box($post_id){
 		// check if fopen is disabled //
-		if( get_option ("wp_wpemp_fopen") == 'off' )
-			return $this->wpemp_get_login_link(true);
+		//die(get_option ("wp_wpemp_fopen"));
+		$msg = '';
+		if(isset($_SESSION['wmemp_loginError'])) $msg = '<div style="color: red; text-align: center; font-weight: bold; padding-bottom: 10px;">Username or password incorrect</div>';
+		if( get_option ("wp_wpemp_fopen") == 'off' ) {
+			return $msg.$this->wpemp_get_login_link(true);
+		}
 		
 
 		// we have fopen, yay .... now we show them a form.//
 		$html  = '<div class="wpemp_message" id="wpemp_message-'.$post_id.'">';
-		$html .= '<p class="wpemp_p"><strong>'.__('This content is for '.get_option('wpemp_name').' members only.').'</strong></p>'."\n";
+		$html .= $msg;
+		$html .= '<p class="wpemp_p"><strong>'.__('This content is for <br />'.get_option('wpemp_name').' <br />members only.').'</strong></p>'."\n";
 
 		$html .= '<div id="wpemp_login_div-'.$post_id.'" style="display:none">'."\n";
 		$html .= '<form id="wpemp_login_form-'.$post_id.'" class="wpemp_login_form" name="wpemp_login_form" action="'.get_option("siteurl").'/?wpemp=login" method="post">'."\n";
@@ -520,40 +538,70 @@ check_admin_referer('wpemp-update-options');
 		$html .= '</div>'."\n";
 		$html .= '<style type="text/css">.postmetadata, .entry-utility {display: none;}</style>'."\n";
 		//die($html);
+		unset($_SESSION['wmemp_loginError']);
 		return $html;
 	}
 	
 	function wpemp_get_upgrade_box($post_id){
 		
-		$levelids = get_post_meta($post_id, "_wpemp_levels", true);
+		$levelids = unserialize(get_post_meta($post_id, "_wpemp_levels", true));
 		$memberlevels = get_option('wpemp_member_levels');
 		//echo var_dump($levelids);
 		//echo var_dump($memberlevels);
 		//die();
-		
-			$a = explode(',',$memberlevels);
-			foreach($a as $v){
-					$b = explode(':',$v);
-					//die(var_dump($b));
-					$levelList[$b[0]] = $b[1];
-					}
-			
-		$pos = strpos($levelids, ',');
-		if ($pos === false) {}
-		else{$setLevels = explode(',',$setLevels);}
-		
-		
+		$a = explode(',',$memberlevels);
+		foreach($a as $v){
+			$b = explode(':',$v);
+			//die(var_dump($b));
+			$levelList[$b[0]] = $b[1];
+		}
 		$html  = '<div class="wpemp_message" id="wpemp_message-'.$post_id.'">';
 		$html .= '<p class="wpemp_p">
-		<strong>'.__('This content is for '.get_option('wpemp_name').' members with the following memberships only.').'</strong>'."<br />\n";
-		$pos = strpos($levelids, ',');
-		if ($pos === false) {$html .=$levelList[$levelids];}
-		else{
-			$ids = explode(',',$levelids);
-			foreach($ids as $v){
-				$html .= $levelList[$v].'<br />';
-				}
+		<strong>'.__('This content is for '.get_option('wpemp_name').' members with one of the following memberships.').'</strong>'."<br />\n";
+		foreach($levelids as $v){
+			$html .= $levelList[$v['id']].'<br />';
+			
 		}
+		
+		$html .= '</p><div align="right">'.$this->wpemp_get_logout_link().'</div>';
+		if(get_option('wpemp_show_powered') == 'yes')
+		{
+			$html .= '<span class="wpemp_small">Powered By <a href="'.$this->wpemp_get_aff_link().'" ';
+			$html .= ' target="_blank" title="Powered by EasyMemberPro">EasyMemberPro</a></span>'."\n";
+		}
+		$html .= '</p>'."\n";
+		$html .= '</div>'."\n";
+		$html .= '<style type="text/css">.postmetadata, .entry-utility {display: none;}</style>'."\n";
+		return $html;
+	}
+	
+	function wpemp_get_dripfeed_box($notEnoughDays){
+		$memberlevels = get_option('wpemp_member_levels');
+		$a = explode(',',$memberlevels);
+		foreach($a as $v){
+			$b = explode(':',$v);
+			//die(var_dump($b));
+			$levelList[$b[0]] = $b[1];
+		}
+		rsort($notEnoughDays);
+		
+		foreach($notEnoughDays as $k=>$v){
+			//die(var_dump($v));
+			foreach($v as $k2=>$v2){
+				
+				if($k2 == 'id'){
+					$name = $levelList[$v2];
+					
+				}
+				if($k2 == 'by'){$days = $v2;}
+				
+			}
+			$listHtml .= $name.'  members in '.$days.' more days.<br/>';	
+		}
+		$html  = '<div class="wpemp_message" id="wpemp_message-'.$post_id.'">';
+		$html .= '<p class="wpemp_p">
+		<strong>'.__('This content will be available to <br />'.$listHtml).'</strong>'."<br />\n";
+		
 		$html .= '</p><div align="right">'.$this->wpemp_get_logout_link().'</div>';
 		if(get_option('wpemp_show_powered') == 'yes')
 		{
@@ -595,9 +643,10 @@ check_admin_referer('wpemp-update-options');
 	}
 	
 	function wpemp_login(){
+		//die(var_dump($_SESSION));
 		if( isset($_GET['wpemp']) && trim($_GET['wpemp']) == 'logout' )
 		{
-			unset($_SESSION['sUsername']);
+			unset($_SESSION['user']['email']);
 			unset($_SESSION['wpemp_levels']);
 			wp_redirect(get_option('siteurl'));
 			exit;
@@ -606,7 +655,6 @@ check_admin_referer('wpemp-update-options');
 		if( !( isset($_GET['wpemp']) && trim($_GET['wpemp']) == 'login') )
 			return false;
 
-	
 		if(!headers_sent())
 		{
 			header("Pragma: no-cache");
@@ -637,9 +685,11 @@ check_admin_referer('wpemp-update-options');
 	
 		ini_set('allow_url_fopen','1');
 		$wmemp_auth_url  = trim(get_option('wpemp_url'), '/').'/api/remoteWP.php?username='.$wpemp_user.'&password='.md5($wpemp_pass);
+
 		$wmemp_auth_url .= '&_nonce='.wp_create_nonce( 'wpemp'. substr(time(), -5) ); // force a new value;
 		$_SESSION['debug'] = $wmemp_auth_url;
 		$auth_res =  file_get_contents($wmemp_auth_url);
+		//die(var_dump($auth_res));
 		//$_SESSION['debug'] = $wmemp_auth_url;
 		//$ch = curl_init();    // initialize curl handle
 	//curl_setopt($ch, CURLOPT_URL,$wmemp_auth_url); // set url to post to
@@ -654,8 +704,12 @@ check_admin_referer('wpemp-update-options');
 	//setcookie("currentVersion", $result, time()+60*60*24);  
 	//return $result;
 	//$auth_res = $result;
+	
+		// Auth Res should be serialized data as of 1.1
+		session_start();
 		if($auth_res == '0')
 		{
+			$_SESSION['wmemp_loginError'] = "Username or password incorrect";
 			if(defined('DOING_AJAX'))
 				die("Username or password incorrect");
 			else
@@ -664,9 +718,12 @@ check_admin_referer('wpemp-update-options');
 		else
 		{
 			session_start();
-			$_SESSION['sUsername'] = $wpemp_user;
-			$_SESSION['wpemp_levels'] = $auth_res;
-			
+			if($auth_res == '1'){$_SESSION['user']['email'] = $wpemp_user;$_SESSION['wpemp_levels'] = NULL;}
+			else{
+				$res = unserialize($auth_res);
+				$_SESSION['user']['email'] = $wpemp_user;
+				$_SESSION['wpemp_levels'] = $res;	
+			}
 			if(defined('DOING_AJAX'))
 				die('1');
 		}
@@ -678,46 +735,10 @@ check_admin_referer('wpemp-update-options');
 	}
 
 	function wpemp_comments_template($attr){
-		if(!isset( $_SESSION['sUsername'] ) )
+		if(!isset( $_SESSION['user']['email'] ) )
 			$attr = WPEMP_DIR . "wpemp_comments.php";
 		return $attr;
 	}
-
-	/*function wpemp_page_custom_box($post) {
-		$wpemp_options = array('none'=> 'Default [Global Settings]', 'yes'=>'Visible to Members only', 'no'=>'Visible to Everyone');
-
-		$html = '<input type="hidden" name="wpemp_nonce" id="wpemp_nonce" value="' . wp_create_nonce( plugin_basename(__FILE__) ) . '" />';
-		$html .= '<table border="0" width="100%" style="text-align:left">';
-
-		if(get_option('wpemp_show_page') == 'yes')
-			$html .= '<tr><th colspan="2">'.__('By default, pages are currently visible only to test members').'</th></tr>';
-		else
-			$html .= '<tr><th colspan="2">'.__('By default, pages are currently visible to everybody.').'</th></tr>';
-
-		$html .= '<tr><td> &raquo; <label for="wpemp_visibility">' . __("Set Pages visibility with wp-EasyMemberPro") . '</label></td>';
-		$html .= '<td><select name="wpemp_dropdown" id="wpemp_dropdown">';
-		foreach($wpemp_options as $id => $opt)
-		{
-			$html .= '<option value="'.$id.'" '. selected($id, get_post_meta($post->ID, '_wpemp_dropdown', true)).'>'.$opt.'</option>';
-		}
-		$html .= '</select>';
-		$html .= '</td></tr>';
-		$levelstring = get_option('wpemp_member_levels');
-		$levelarray = explode(',',$levelstring);
-		$levelcount = count($levelarray);
-		//die(var_dump($levelcount));
-if($levelcount > 0){
-	foreach($levelarray as $v){
-	$level = explode(':',$v);
-
-$html .='<input name="levelIds[]" type="checkbox" value="'.$level[0].'" />'.$level[1].'&nbsp;';
-
-	}
-}
-		$html .= '<tr><td> &raquo; <label for="wpemp_excerpt">' . __("Show Post Excerpts") . '</label></td>';
-		$html .= '<td><input type="checkbox" name="wpemp_excerpt" id="wpemp_excerpt" value="yes" '. checked(get_post_meta($post->ID, '_wpemp_excerpt', true), 'yes').'/> </td></tr></table>';
-		echo $html;
-	}*/
 	
 	function wpemp_page_custom_box($post) {
 		
@@ -794,7 +815,6 @@ $html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$lev
 	}
 
 	function wpemp_post_custom_box($post) {
-		
 		$html = "";
 		$html .="<script type='text/javascript'>
 		function showLevels(ele,div){
@@ -807,13 +827,16 @@ $html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$lev
 		</script>";
 		$levelstring = get_option('wpemp_member_levels');
 		$levelarray = explode(',',$levelstring);
+		//$levelArray = unserialize($levelstring);
+		//die(var_dump($levelArray));
 		$levelcount = count($levelarray);
-		$setLevels = get_post_meta($post->ID, '_wpemp_levels', true);
-		//die($setLevels);
-		$pos = strpos($setLevels, ',');
-		if ($pos === false) {}
-		else{$setLevels = explode(',',$setLevels);}
+		$setLevels = unserialize(get_post_meta($post->ID, '_wpemp_levels', true));
+		//die(var_dump($setLevels));
+		//$pos = strpos($setLevels, ',');
+		//if ($pos === false) {}
+		//else{$setLevels = explode(',',$setLevels);}
 		$vis = get_post_meta($post->ID, '_wpemp_dropdown', true);
+		
 		if($vis == 'yes'){$display = 'display:inline';$display2 = 'display:block';}
 		else{$display = 'display:none';$display2 = 'display:none';}
 
@@ -839,33 +862,40 @@ $html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$lev
 		
 		if($levelcount > 0){
 			foreach($levelarray as $v){
+				// Level is broken into an array
+				// $level[0] is Id 
+				// $level 1 is name
+				//$days = 0;
 				$checked = "";
 				$level = explode(':',$v);
+				
 				if(is_array($setLevels)){
-					foreach($setLevels as $v){
-						if($v == $level[0]){
-							$checked = 'checked=checked';break;
+					
+					foreach($setLevels as $k1=>$v1){
+						//$k1 is the Id Of The User Level
+						if($k1 == $level[0]){
+							// This is the right array
+							$checked = 'checked=checked';
+							// Grab The Days
+							//var_dump($v1);
+							foreach ($v1 as $k2=>$v2){
+								
+								if($k2 == 'days') $days[$k1] = $v2;
+							}
 						}
-						else{$checked = "";}
+						
 					}
 				}
-				else{
-					if($setLevels == $level[0]){
-						$checked = 'checked=checked';
-					}
-					else{$checked = '';}
-				}
+				$html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$level[0].'" style="'.$display.'"/>&nbsp;'.$level[1].'&nbsp;';
+				$html .= ' -> Membership Days Required <input type="text" name="wpemp_levels_days[]" size="7" value="'.$days[$level[0]].'"> <br />';
 
-$html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$level[0].'" style="'.$display.'"/>&nbsp;'.$level[1].'&nbsp;';
-
-	}
-}
+			}
+		}
 		$html .='</div>';
 		$html .= '</td></tr>';
 		$html .= '<tr><td width="35%"> &raquo; <label for="wpemp_excerpt">' . __("Show Post Excerpts") . '</label></td>';
 		$html .= '<td width="65%"><input type="checkbox" name="wpemp_excerpt" id="wpemp_excerpt" value="yes" '. checked(get_post_meta($post->ID, '_wpemp_excerpt', true), 'yes', false).'/></td></tr></table>';
-		echo $html;
-	}
+		echo $html;}
 
 	function wpemp_add_custom_box() {
 		if( function_exists( 'add_meta_box' )) {
@@ -889,6 +919,18 @@ $html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$lev
 		  		return $post_id;
 		}
   		$levelstring = "";
+		//die(var_dump($_POST));
+		
+		$levelSettings = array();
+		foreach($_POST['wpemp_levels'] as $k=>$v){
+			
+			$levelSettings[$v]['id'] = $v;
+			$levelSettings[$v]['days'] = $_POST["wpemp_levels_days"][$k];
+		}
+		
+		$storeLevelSettings = serialize($levelSettings);
+		
+		
 		if(isset($_POST['wpemp_levels']) && $_POST['wpemp_levels'] !=''){
 			if(is_array($_POST['wpemp_levels'])){
 			foreach($_POST['wpemp_levels'] as $v){
@@ -903,7 +945,7 @@ $html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$lev
 		$wpemp_excerpt = trim(strip_tags(stripslashes($_POST['wpemp_excerpt'])));
 
 		update_post_meta( $post_id, '_wpemp_dropdown', $wpemp_dropdown);
-		update_post_meta( $post_id, '_wpemp_levels', $wpemp_levels);
+		update_post_meta( $post_id, '_wpemp_levels', $storeLevelSettings);
 		update_post_meta( $post_id, '_wpemp_excerpt', $wpemp_excerpt);
 		return $post_id;
 	}
