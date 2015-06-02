@@ -50,8 +50,4 @@ $rwMember = $data->profile;
     		<td align="right">Mobile</td>
     		<td><?php echo $rwMember->sMobile; ?></td>
    		</tr>
-    	<tr>
-    		<td align="right">Password</td>
-    		<td><?php echo $rwMember->sPassword; ?></td>
-   		</tr>
 </table>
