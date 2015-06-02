@@ -3,7 +3,7 @@
 Plugin Name: wp-EasyMemberPro!
 Plugin URI: http://www.easymemberpro.com
 Description: An Extension to Easy Member Pro, Allowing for the Viewing of Pages and Posts Based on Membership Levels, and drip feed options.
-Version: 1.1.1
+Version: 1.1.2
 Author: EasyMemberPro
 Author URI: http://www.easymemberpro.com
 */
@@ -1079,11 +1079,12 @@ check_admin_referer('wpemp-update-options');
 		//die(var_dump($_POST));
 		
 		$levelSettings = array();
-		foreach($_POST['wpemp_levels'] as $k=>$v){
+		if(is_array($_POST['wpemp_levels'])){foreach($_POST['wpemp_levels'] as $k=>$v){
 			
 			$levelSettings[$v]['id'] = $v;
 			$levelSettings[$v]['days'] = $_POST["wpemp_levels_days"][$k];
-		}
+		}}
+		
 		
 		$storeLevelSettings = serialize($levelSettings);
 		
