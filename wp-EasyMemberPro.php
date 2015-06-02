@@ -3,7 +3,7 @@
 Plugin Name: wp-EasyMemberPro!
 Plugin URI: http://www.easymemberpro.com
 Description: An Extension to Easy Member Pro, Allowing for the Viewing of Pages and Posts Based on Membership Levels, and drip feed options.
-Version: 1.1.0
+Version: 1.1.1
 Author: EasyMemberPro
 Author URI: http://www.easymemberpro.com
 */
@@ -17,7 +17,6 @@ class wp_EasyMemberPro
 	{
 		if ( ! defined( 'WP_PLUGIN_URL' ) 	) 	define( 'WP_PLUGIN_URL'		, get_option("siteurl") . '/wp-content/plugins' );
 		if ( ! defined( 'WP_PLUGIN_DIR' ) 	) 	define( 'WP_PLUGIN_DIR'		, ABSPATH . 'wp-content/plugins' );
-
 		if ( basename(dirname(__FILE__)) == 'plugins' )
 		{
 			define("WPEMP_DIR"		, WP_PLUGIN_DIR.'/');
@@ -39,8 +38,9 @@ class wp_EasyMemberPro
 		$this->message 			= array();
 		$this->err	 			= array();
 
-		add_action( 'init'				, array( &$this, 'wpemp_session'		), 0);
-		add_action( 'init'				, array( &$this, 'wpemp_login'		), 1);
+		
+		add_action( 'init'				, array( &$this, 'wpemp_session'), 0);
+		add_action( 'init'				, array( &$this, 'wpemp_login'), 1);
 		add_action( 'admin_menu'			, array( &$this, 'wpemp_admin_menu'		));
 		add_action( 'wpemp_options_page_save'	, array( &$this, 'wpemp_options_page_save'));
 		add_action( 'admin_menu'			, array( &$this, 'wpemp_add_custom_box'	));
@@ -52,7 +52,6 @@ class wp_EasyMemberPro
 		// Category Management
 		add_action ('edit_category_form', array(&$this, 'wpemp_category_levels_form' ));
 		add_action('edit_category',array(&$this, 'wpemp_save_category_levels_form'));
-		
 
 		add_filter( 'the_content'			, array( &$this, 'wpemp_content'), 100);
 		add_filter( 'manage_pages_columns'		, array( &$this, 'wpemp_columns_heads'	));
@@ -61,8 +60,25 @@ class wp_EasyMemberPro
 		add_filter( 'plugin_action_links'		, array( &$this, 'wpemp_actions'		), 10, 2);
 		
 		add_filter('wp_list_categories',array(&$this,'wpemp_category_filter'));
+		
+		add_shortcode('emp-member-profile',array(&$this,'wpemp_display_profile'));
+		add_shortcode('emp-member-memberships',array(&$this,'wpemp_display_memberships'));
+		
+		add_shortcode('emp-firstname',array(&$this,'wpemp_firstname'));
+		add_shortcode('emp-lastname',array(&$this,'wpemp_lastname'));
+		add_shortcode('emp-email',array(&$this,'wpemp_email'));
+		add_shortcode('emp-addr',array(&$this,'wpemp_addr'));
+		add_shortcode('emp-addr2',array(&$this,'wpemp_addr2'));
+		add_shortcode('emp-addr3',array(&$this,'wpemp_addr3'));
+		add_shortcode('emp-city',array(&$this,'wpemp_city'));
+		add_shortcode('emp-state',array(&$this,'wpemp_state'));
+		add_shortcode('emp-zipcode',array(&$this,'wpemp_zipcode'));
+		add_shortcode('emp-country',array(&$this,'wpemp_country'));
+		add_shortcode('emp-telephone',array(&$this,'wpemp_telephone'));
+		add_shortcode('emp-mobile',array(&$this,'wpemp_mobile'));	
 	}
 
+	/*Handles Activation and Deactivation of Plugin*/
 	function wpemp_activate(){
 		update_option ("wp_wpemp_ver", WPEMP_VER);
 		update_option ("wpemp_show_powered", "yes");
@@ -106,7 +122,23 @@ class wp_EasyMemberPro
 		delete_option ( 'wpemp_cat_options');
 		
 	}
-
+	
+	/*Load Up Style Sheets and Javascripts*/
+	function wpemp_style() {
+		$myStyleUrl 	= WPEMP_URL . 'css/wp-easymemberpro.css';
+		$myStyleFile 	= WPEMP_DIR . 'css/wp-easymemberpro.css';
+	
+		if ( file_exists($myStyleFile) ) {
+			wp_register_style( 'wpemp_style', $myStyleUrl);
+			wp_enqueue_style ( 'wpemp_style' );
+		}
+	}
+	
+	function wpemp_script(){
+		wp_enqueue_script('wpemp_script', WPEMP_URL . 'js/wp-easymemberpro.js', array('jquery'));
+	}
+	
+	/*Handles Global Options Page*/
 	function wpemp_options_page(){
 		if (!current_user_can('manage_options')) wp_die(__('Sorry, but you have no permissions to change settings'));
 
@@ -333,6 +365,259 @@ check_admin_referer('wpemp-update-options');
 	function wpemp_admin_menu() {
 		add_options_page('WP-EasyMemberPro', 'WP-EasyMemberPro', 8, 'wpemp_options', array( &$this, 'wpemp_options_page') );
 	}
+	
+	/*Handles The Per Post & Per Page Options*/
+	function wpemp_page_custom_box($post) {
+		ob_start();
+		?>
+		<script type='text/javascript'>
+		function showLevels(ele,div){
+			if(ele.options[ele.selectedIndex].value == 'yes'){
+				document.getElementById('levelsLabel').style.display = 'block';
+				document.getElementById(div).style.display = 'block';
+			}
+			else{document.getElementById(div).style.display = 'none';document.getElementById('levelsLabel').style.display = 'none';}
+		}
+		</script>
+<?php
+		
+		$levelstring = get_option('wpemp_member_levels');
+		$levelarray = explode(',',$levelstring);
+		//$levelArray = unserialize($levelstring);
+		//die(var_dump($levelArray));
+		$levelcount = count($levelarray);
+		$setLevels = unserialize(get_post_meta($post->ID, '_wpemp_levels', true));
+		//die(var_dump($setLevels));
+		//$pos = strpos($setLevels, ',');
+		//if ($pos === false) {}
+		//else{$setLevels = explode(',',$setLevels);}
+		$vis = get_post_meta($post->ID, '_wpemp_dropdown', true);
+		
+		if($vis == 'yes'){$display = 'display:inline';$display2 = 'display:block';}
+		else{$display = 'display:none';$display2 = 'display:none';}
+
+		$wpemp_options = array('none'=> 'Default [Global Settings]', 'yes'=>'Visible to Members only', 'no'=>'Visible to Everyone');
+		?>
+
+<input type="hidden" name="wpemp_nonce" id="wpemp_nonce" value="<?php echo wp_create_nonce( plugin_basename(__FILE__) ) ?>" />
+<table border="0" width="95%" style="text-align:left">
+	<?php
+		if(get_option('wpemp_show_page') == 'yes'){ ?>
+	<tr>
+		<th colspan="3"><?php echo __('By default, Pages are currently visible only to members') ?></th>
+	</tr>
+	<?php }else{ ?>
+	<tr>
+		<th colspan="3"><?php echo __('By default, Pages are currently visible to everybody ')?></th>
+	</tr>
+	<?php } ?>
+	<tr>
+		<td>&raquo;
+			<label for="wpemp_visibility"><?php echo  __("Set Page visibility with wp-EasyMemberPro")  ?></label>
+			<div id="levelsLabel" style=" <?php echo $display2 ?>">&raquo;&raquo;
+				<label for="wpemp_levels"><?php echo  __("Membership Level Required")  ?></label>
+			</div></td>
+		<td colspan="2"><select name="wpemp_dropdown" id="wpemp_dropdown" onChange= "showLevels(this,'allLevels')">
+				<?php
+		foreach($wpemp_options as $id => $opt)
+		{?>
+				<option value="<?php echo $id ?>" <?php echo  selected($id, get_post_meta($post->ID, '_wpemp_dropdown', true), false) ?>><?php echo $opt ?></option>
+				<?php } ?>
+			</select>
+			';
+			<div id="allLevels">';
+				<?php 
+		if($levelcount > 0){
+			foreach($levelarray as $v){
+				// Level is broken into an array
+				// $level[0] is Id 
+				// $level 1 is name
+				//$days = 0;
+				$checked = "";
+				$level = explode(':',$v);
+				
+				if(is_array($setLevels)){
+					
+					foreach($setLevels as $k1=>$v1){
+						//$k1 is the Id Of The User Level
+						if($k1 == $level[0]){
+							// This is the right array
+							$checked = 'checked=checked';
+							// Grab The Days
+							//var_dump($v1);
+							foreach ($v1 as $k2=>$v2){
+								
+								if($k2 == 'days') $days[$k1] = $v2;
+							}
+						}
+						
+					}
+				}?>
+				<input name="wpemp_levels[]" type="checkbox" <?php echo $checked ?> value="<?php echo $level[0] ?>" style=" <?php echo $display ?>"/>
+				&nbsp;<?php echo $level[1] ?>&nbsp;
+				-> Membership Days Required
+				<input type="text" name="wpemp_levels_days[]" size="7" value="<?php echo $days[$level[0]] ?>">
+				<br />
+				<?php
+
+			}
+		}
+		?>
+			</div></td>
+	</tr>
+	<tr>
+		<td width="35%">&raquo;
+			<label for="wpemp_excerpt"><?php echo  __("Show Page Excerpts")  ?></label></td>
+		<td width="65%" colspan="2"><input type="checkbox" name="wpemp_excerpt" id="wpemp_excerpt" value="yes" <?php echo  checked(get_post_meta($post->ID, '_wpemp_excerpt', true), 'yes', false) ?>/></td>
+	</tr>
+	<tr>
+		<td colspan="3">&nbsp;</td>
+	</tr>
+	<tr>
+		<td><strong>Member Profile Tags</strong><br>
+			[emp-firstname]<br>
+			[emp-lastname]<br>
+			[emp-email]<br>
+			[emp-addr]<br>
+			[emp-addr2]<br>
+			[emp-addr3]<br>
+			[emp-city]<br>
+			[emp-state]<br>
+			[emp-zipcode]<br>
+			[emp-country]<br>
+			[emp-telephone]<br>
+			[emp-mobile]</td>
+		<td valign="top">
+		<p><strong>Member Data Table Tags </strong></p>
+			<p><strong>Shows Member Profile in a table</strong><br>
+				[emp-member-profile]</p>
+			<p><strong>Shows Active Memberships in a table</strong><br>
+				[emp-member-memberships]</p>
+		</td>
+	</tr>
+</table>
+<?php
+	echo ob_get_clean();
+		
+	}
+
+	function wpemp_post_custom_box($post) {
+		$html = "";
+		$html .="<script type='text/javascript'>
+		function showLevels(ele,div){
+			if(ele.options[ele.selectedIndex].value == 'yes'){
+				document.getElementById('levelsLabel').style.display = 'block';
+				document.getElementById(div).style.display = 'block';
+			}
+			else{document.getElementById(div).style.display = 'none';document.getElementById('levelsLabel').style.display = 'none';}
+		}
+		</script>";
+		$levelstring = get_option('wpemp_member_levels');
+		$levelarray = explode(',',$levelstring);
+		//$levelArray = unserialize($levelstring);
+		//die(var_dump($levelArray));
+		$levelcount = count($levelarray);
+		$setLevels = unserialize(get_post_meta($post->ID, '_wpemp_levels', true));
+		//die(var_dump($setLevels));
+		//$pos = strpos($setLevels, ',');
+		//if ($pos === false) {}
+		//else{$setLevels = explode(',',$setLevels);}
+		$vis = get_post_meta($post->ID, '_wpemp_dropdown', true);
+		
+		if($vis == 'yes'){$display = 'display:inline';$display2 = 'display:block';}
+		else{$display = 'display:none';$display2 = 'display:none';}
+
+		$wpemp_options = array('none'=> 'Default [Global Settings]', 'yes'=>'Visible to Members only', 'no'=>'Visible to Everyone');
+		$html .= '<input type="hidden" name="wpemp_nonce" id="wpemp_nonce" value="' . wp_create_nonce( plugin_basename(__FILE__) ) . '" />';
+		$html .= '<table border="0" width="95%" style="text-align:left">';
+
+		if(get_option('wpemp_show_post') == 'yes')
+			$html .= '<tr><th colspan="2">'.__('By default, Posts are currently visible only to members.').'</th></tr>';
+		else
+			$html .= '<tr><th colspan="2">'.__('By default, Posts are currently visible to everybody.').'</th></tr>';
+
+		$html .= '<tr><td> &raquo; <label for="wpemp_visibility">' . __("Set Posts visibility with wp-EasyMemberPro") . '</label>
+		<div id="levelsLabel" style="'.$display2.'">&raquo;&raquo; <label for="wpemp_levels">' . __("Membership Level Required") . '</label></div>
+		</td>';
+		$html .= '<td><select name="wpemp_dropdown" id="wpemp_dropdown" onChange= "showLevels(this,\'allLevels\')">';
+		foreach($wpemp_options as $id => $opt)
+		{
+			$html .= '<option value="'.$id.'" '. selected($id, get_post_meta($post->ID, '_wpemp_dropdown', true), false).'>'.$opt.'</option>';
+		}
+		$html .= '</select>';
+		$html .='<div id="allLevels">';
+		
+		if($levelcount > 0){
+			foreach($levelarray as $v){
+				// Level is broken into an array
+				// $level[0] is Id 
+				// $level 1 is name
+				//$days = 0;
+				$checked = "";
+				$level = explode(':',$v);
+				
+				if(is_array($setLevels)){
+					
+					foreach($setLevels as $k1=>$v1){
+						//$k1 is the Id Of The User Level
+						if($k1 == $level[0]){
+							// This is the right array
+							$checked = 'checked=checked';
+							// Grab The Days
+							//var_dump($v1);
+							foreach ($v1 as $k2=>$v2){
+								
+								if($k2 == 'days') $days[$k1] = $v2;
+							}
+						}
+						
+					}
+				}
+				$html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$level[0].'" style="'.$display.'"/>&nbsp;'.$level[1].'&nbsp;';
+				$html .= ' -> Membership Days Required <input type="text" name="wpemp_levels_days[]" size="7" value="'.$days[$level[0]].'"> <br />';
+
+			}
+		}
+		$html .='</div>';
+		$html .= '</td></tr>';
+		$html .= '<tr><td width="35%"> &raquo; <label for="wpemp_excerpt">' . __("Show Post Excerpts") . '</label></td>';
+		$html .= '<td width="65%"><input type="checkbox" name="wpemp_excerpt" id="wpemp_excerpt" value="yes" '. checked(get_post_meta($post->ID, '_wpemp_excerpt', true), 'yes', false).'/></td></tr>';
+		
+		$html .='<tr>
+		<td colspan="2">&nbsp;</td>
+	</tr>
+	<tr>
+		<td><strong>Member Profile Tags</strong><br>
+			[emp-firstname]<br>
+			[emp-lastname]<br>
+			[emp-email]<br>
+			[emp-addr]<br>
+			[emp-addr2]<br>
+			[emp-addr3]<br>
+			[emp-city]<br>
+			[emp-state]<br>
+			[emp-zipcode]<br>
+			[emp-country]<br>
+			[emp-telephone]<br>
+			[emp-mobile]</td>
+		<td valign="top">
+		<p><strong>Member Data Table Tags </strong></p>
+			<p><strong>Shows Member Profile in a table</strong><br>
+				[emp-member-profile]</p>
+			<p><strong>Shows Active Memberships in a table</strong><br>
+				[emp-member-memberships]</p>
+		</td>
+	</tr></table>';
+		echo $html;}
+
+	function wpemp_add_custom_box() {
+		if( function_exists( 'add_meta_box' )) {
+			foreach (array('post','page') as $type) 
+				add_meta_box( 'wpemp_section', __( 'wp-EasyMemberPro Options'), array( &$this, 'wpemp_'.$type.'_custom_box'), $type, 'normal', 'high' );
+		}
+	}
+	
+	
 
 	function wpemp_is_url(&$obj){
 		if (! ( ($c = strpos($obj, 'http')) == 0 && $c !== false ) )
@@ -354,6 +639,8 @@ check_admin_referer('wpemp-update-options');
 		printf('%1$s | Version %2$s | by %3$s<br />', $plugin_data['Title'], $plugin_data['Version'], $plugin_data['Author']); 
 		echo '</em></div>';
 	}
+	
+	/*Handles The Page Protection And Login Box Features*/
 
 	function wpemp_actions($links, $file){
 		if( strpos( $file, basename(__FILE__)) !== false )
@@ -364,7 +651,30 @@ check_admin_referer('wpemp-update-options');
 		return $links;
 	}
 	
+	function wpemp_display_profile(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		
+		ob_start();
+		require(WPEMP_DIR.'/inc/profile.php');
+		
+		return ob_get_clean();
+		//return 'Hello!';
+		
+	}
+	
+	function wpemp_display_memberships(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		
+		ob_start();
+		//var_dump($data);
+		require(WPEMP_DIR.'/inc/membership-details.php');
+		
+		return ob_get_clean();
+		
+	}
+	
 	function wpemp_content($content = ''){
+		@session_start();
 		if(get_option('wpemp_url') == '' && (get_option('wpemp_show_post') == 'yes' || get_option('wpemp_show_page') == 'yes'))
 			return $content . '<div id="wpemp_message"><strong>'.__('EasyMemberPro URL Required').'</strong><br/>'.__('Please goto settings page and set the URL to EasyMemberPro').'</div>';
 
@@ -376,24 +686,39 @@ check_admin_referer('wpemp-update-options');
 		
 		
 		// Lets check if Level is required
-		$userlevels = $_SESSION['wpemp_levels'];
+		$userlevels = unserialize($_SESSION['wpemp_userData']);
+		//die(var_dump($_SESSION['wpemp_userData']));
+		
+		//die(var_dump($userlevels->activeLevelData));
+		
+		$levelData = (array)$userlevels->activeLevelData;
+		
+		//die(var_dump($levelData));
+		foreach ($levelData as $k=>$v){
+			
+			//die(var_dump((array)$v));
+			$memberRights[$k] = (array)$v;
+			
+			
+		}
+		//die(var_dump($memberRights));
+		
 		$postRights = unserialize($post_level);
-		$memberRights = $userlevels;
+		//$memberRights = $userlevels;
+		
 		
 		$approved = 0;
 		$notEnoughDays = array();
 		if(isset( $_SESSION['user']['email'] )){
 			//die(var_dump($postRights));
 			foreach($postRights as $k=>$v){
-				
 				//die(var_dump($memberRights));
 				$nd = 0;
 				
 				// Lets Check If User Has member Levels
 				if(is_array($memberRights)){
 					foreach($memberRights as $k2 =>$v2){
-					
-					$html .= $v['id'] .'='. $k2;
+					//var_dump($v2);die();
 					if($v['id'] == $k2){
 						// Found A Matching Assigned Level
 						$html .= 'This is a match<br />';
@@ -499,46 +824,50 @@ check_admin_referer('wpemp-update-options');
 			return $msg.$this->wpemp_get_login_link(true);
 		}
 		
+		/*Login Box Html*/
+		ob_start();
+		?>
+		
+		<div class="wpemp_message" id="wpemp_message-<?php echo $post_id ?>">
+		<?php echo $msg?>
+		<p class="wpemp_p"><strong><?php echo __('This content is for <strong>'.get_option('wpemp_name').' </strong> members only.')?></strong></p>
 
-		// we have fopen, yay .... now we show them a form.//
-		$html  = '<div class="wpemp_message" id="wpemp_message-'.$post_id.'">';
-		$html .= $msg;
-		$html .= '<p class="wpemp_p"><strong>'.__('This content is for <br />'.get_option('wpemp_name').' <br />members only.').'</strong></p>'."\n";
+		<div id="wpemp_login_div-<?php echo $post_id ?>" style="display:none">
+		<form id="wpemp_login_form-<?php echo $post_id ?>" class="wpemp_login_form" name="wpemp_login_form" action="<?php echo get_option("siteurl")?>/?wpemp=login" method="post">
+		<input type="hidden" name="ajax_nonce" id="ajax_nonce-<?php echo $post_id ?>" value="<?php echo wp_create_nonce( 'wpemp_ajax' )?>"/>
+		<p class="wpemp_p">
+			<label for="wpemp_user"><?php echo __('Username')?>: </label><br/>
+			<input name="wpemp_user" id="wpemp_user-<?php echo $post_id ?>" class="wpemp_user" value="" title="User Name"/>
+		</p>
+		<p class="wpemp_p">
+			<label for="wpemp_pass"><?php echo __('Password')?>: </label><br/>
+			<input name="wpemp_pass" id="wpemp_pass-<?php echo $post_id ?>" class="wpemp_pass" value="" type="password" title="'.__('Password').'"/>
+		</p>
+		<p class="wpemp_pl">
+			<span id="wpemp_login_note-<?php echo $post_id ?>" class="wpemp_login_note">&nbsp;</span>
+		</p>
+		<p class="wpemp_pr">
+			<img src="<?php echo  WPEMP_URL ?>css/loader.gif" id="wpemp_loader-<?php echo $post_id ?>" class="wpemp_loader" alt="Loading..." style="display:none"/>
+			<input value="Login" name="wpemp_submit" id="wpemp_submit-<?php echo $post_id ?>" class="wpemp_submit" type="submit" />
+		</p>
+		</form></div>
 
-		$html .= '<div id="wpemp_login_div-'.$post_id.'" style="display:none">'."\n";
-		$html .= '<form id="wpemp_login_form-'.$post_id.'" class="wpemp_login_form" name="wpemp_login_form" action="'.get_option("siteurl").'/?wpemp=login" method="post">'."\n";
-		$html .= '<input type="hidden" name="ajax_nonce" id="ajax_nonce-'.$post_id.'" value="'.wp_create_nonce( 'wpemp_ajax' ).'"/>'."\n";
-		$html .= '<p class="wpemp_p">'."\n";
-		$html .= '	<label for="wpemp_user">'.__('Username').': </label><br/>'."\n";
-		$html .= '	<input name="wpemp_user" id="wpemp_user-'.$post_id.'" class="wpemp_user" value="" title="User Name"/>'."\n";
-		$html .= '</p>'."\n";
-		$html .= '<p class="wpemp_p">'."\n";
-		$html .= '	<label for="wpemp_pass">'.__('Password').': </label><br/>'."\n";
-		$html .= '	<input name="wpemp_pass" id="wpemp_pass-'.$post_id.'" class="wpemp_pass" value="" type="password" title="'.__('Password').'"/>'."\n";
-		$html .= '</p>'."\n";
-		$html .= '<p class="wpemp_pl">'."\n";
-		$html .= '	<span id="wpemp_login_note-'.$post_id.'" class="wpemp_login_note">&nbsp;</span>'."\n";
-		$html .= '</p>'."\n";
-		$html .= '<p class="wpemp_pr">'."\n";
-		$html .= '	<img src="' . WPEMP_URL . 'css/loader.gif" id="wpemp_loader-'.$post_id.'" class="wpemp_loader" alt="Loading..." style="display:none"/>'."\n";
-		$html .= '	<input value="Login" name="wpemp_submit" id="wpemp_submit-'.$post_id.'" class="wpemp_submit" type="submit" />'."\n";
-		$html .= '</p>'."\n";
-		$html .= '</form></div>'."\n";
-
-		$html .= '<p class="wpemp_p">'."\n";
-		$html .= '<a href="'.$this->wpemp_get_singup_link().'" id="wpemp_link_register-'.$post_id.'" title="'.__('Register').'" target="_blank">'.__('Become a Member').'</a> | '."\n";
-		$html .= '<a href="'.trim(get_option('wpemp_url'),'/').'/index.php?page=login" id="wpemp_link_login-'.$post_id.'" class="wpemp_link_login" title="'.__('Login').'">'.__('Login').'</a>'."\n";
-		$html .= '<a href="'.trim(get_option('wpemp_url'),'/').'/index.php?page=forgot" id="wpemp_link_forgot-'.$post_id.'" title="'.__('Forgot Password').'" style="display:none;" target="_blank"> | '.__('Forgot Password').'</a><br/>'."\n";
-		if(get_option('wpemp_show_powered') == 'yes')
-		{
-			$html .= '<span class="wpemp_small">Powered By <a href="'.$this->wpemp_get_aff_link().'" ';
-			$html .= ' target="_blank" title="Powered by EasyMemberPro">EasyMemberPro</a></span>'."\n";
-		}
-		$html .= '</p>'."\n";
-		$html .= '</div>'."\n";
-		$html .= '<style type="text/css">.postmetadata, .entry-utility {display: none;}</style>'."\n";
-		//die($html);
+		<p class="wpemp_p">
+		<a href="<?php echo $this->wpemp_get_singup_link()?>" id="wpemp_link_register-<?php echo $post_id ?>" title="<?php echo __('Register')?>" target="_blank"><?php echo __('Become a Member')?></a> | 
+		<a href="<?php echo trim(get_option('wpemp_url'),'/')?>/index.php?page=login" id="wpemp_link_login-<?php echo $post_id ?>" class="wpemp_link_login" title="<?php echo __('Login')?>"><?php echo __('Login')?></a>
+		<a href="<?php echo trim(get_option('wpemp_url'),'/')?>/index.php?page=forgot" id="wpemp_link_forgot-<?php echo $post_id ?>" title="<?php echo __('Forgot Password')?>" style="display:none;" target="_blank"> | <?php echo __('Forgot Password')?></a><br/>
+		<?php if(get_option('wpemp_show_powered') == 'yes'){ ?>
+			<span class="wpemp_small">Powered By <a href="'.$this->wpemp_get_aff_link().'" ';
+			 target="_blank" title="Powered by EasyMemberPro">EasyMemberPro</a></span>
+		<?php } ?>
+		</p>
+		</div>
+		<style type="text/css">.postmetadata, .entry-utility {display: none;}</style>
+		<?php 
+		$html = ob_get_clean();
+		
 		unset($_SESSION['wmemp_loginError']);
+		
 		return $html;
 	}
 	
@@ -628,20 +957,8 @@ check_admin_referer('wpemp-update-options');
 			return trim(get_option('wpemp_url'),'/').'/index.php?page=join';
 	}
 
-	function wpemp_style() {
-		$myStyleUrl 	= WPEMP_URL . 'css/wp-easymemberpro.css';
-		$myStyleFile 	= WPEMP_DIR . 'css/wp-easymemberpro.css';
 	
-		if ( file_exists($myStyleFile) ) {
-			wp_register_style( 'wpemp_style', $myStyleUrl);
-			wp_enqueue_style ( 'wpemp_style' );
-		}
-	}
-	
-	function wpemp_script(){
-		wp_enqueue_script('wpemp_script', WPEMP_URL . 'js/wp-easymemberpro.js', array('jquery'));
-	}
-	
+	/*Handles The Login And Out Function*/ 
 	function wpemp_login(){
 		//die(var_dump($_SESSION));
 		if( isset($_GET['wpemp']) && trim($_GET['wpemp']) == 'logout' )
@@ -720,7 +1037,9 @@ check_admin_referer('wpemp-update-options');
 			session_start();
 			if($auth_res == '1'){$_SESSION['user']['email'] = $wpemp_user;$_SESSION['wpemp_levels'] = NULL;}
 			else{
+				$_SESSION['wpemp_userData'] = $auth_res;
 				$res = unserialize($auth_res);
+				
 				$_SESSION['user']['email'] = $wpemp_user;
 				$_SESSION['wpemp_levels'] = $res;	
 			}
@@ -740,169 +1059,7 @@ check_admin_referer('wpemp-update-options');
 		return $attr;
 	}
 	
-	function wpemp_page_custom_box($post) {
-		
-		$html = "";
-		$html .="<script type='text/javascript'>
-		function showLevels(ele,div){
-			if(ele.options[ele.selectedIndex].value == 'yes'){
-				document.getElementById('levelsLabel').style.display = 'block';
-				document.getElementById(div).style.display = 'block';
-			}
-			else{document.getElementById(div).style.display = 'none';document.getElementById('levelsLabel').style.display = 'none';}
-		}
-		</script>";
-		$levelstring = get_option('wpemp_member_levels');
-		$levelarray = explode(',',$levelstring);
-		$levelcount = count($levelarray);
-		$setLevels = get_post_meta($post->ID, '_wpemp_levels', true);
-		//die($setLevels);
-		$pos = strpos($setLevels, ',');
-		if ($pos === false) {}
-		else{$setLevels = explode(',',$setLevels);}
-		$vis = get_post_meta($post->ID, '_wpemp_dropdown', true);
-		if($vis == 'yes'){$display = 'display:inline';$display2 = 'display:block';}
-		else{$display = 'display:none';$display2 = 'display:none';}
-
-		$wpemp_options = array('none'=> 'Default [Global Settings]', 'yes'=>'Visible to Members only', 'no'=>'Visible to Everyone');
-		$html .= '<input type="hidden" name="wpemp_nonce" id="wpemp_nonce" value="' . wp_create_nonce( plugin_basename(__FILE__) ) . '" />';
-		$html .= '<table border="0" width="95%" style="text-align:left">';
-
-		if(get_option('wpemp_show_post') == 'yes')
-			$html .= '<tr><th colspan="2">'.__('By default, Posts are currently visible only to members.').'</th></tr>';
-		else
-			$html .= '<tr><th colspan="2">'.__('By default, Posts are currently visible to everybody.').'</th></tr>';
-
-		$html .= '<tr><td> &raquo; <label for="wpemp_visibility">' . __("Set Posts visibility with wp-EasyMemberPro") . '</label>
-		<div id="levelsLabel" style="'.$display2.'">&raquo;&raquo; <label for="wpemp_levels">' . __("Membership Level Required") . '</label></div>
-		</td>';
-		$html .= '<td><select name="wpemp_dropdown" id="wpemp_dropdown" onChange= "showLevels(this,\'allLevels\')">';
-		foreach($wpemp_options as $id => $opt)
-		{
-			$html .= '<option value="'.$id.'" '. selected($id, get_post_meta($post->ID, '_wpemp_dropdown', true), false).'>'.$opt.'</option>';
-		}
-		$html .= '</select>';
-		$html .='<div id="allLevels" style="'.$display.'">';
-		
-		if($levelcount > 0){
-			foreach($levelarray as $v){
-				$checked = "";
-				$level = explode(':',$v);
-				if(is_array($setLevels)){
-					foreach($setLevels as $v){
-						if($v == $level[0]){
-							$checked = 'checked=checked';break;
-						}
-						else{$checked = "";}
-					}
-				}
-				else{
-					if($setLevels == $level[0]){
-						$checked = 'checked=checked';
-					}
-					else{$checked = '';}
-				}
-
-$html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$level[0].'" />&nbsp;'.$level[1].'&nbsp;';
-
-	}
-}
-		$html .='</div>';
-		$html .= '</td></tr>';
-		$html .= '<tr><td width="35%"> &raquo; <label for="wpemp_excerpt">' . __("Show Post Excerpts") . '</label></td>';
-		$html .= '<td width="65%"><input type="checkbox" name="wpemp_excerpt" id="wpemp_excerpt" value="yes" '. checked(get_post_meta($post->ID, '_wpemp_excerpt', true), 'yes', false).'/></td></tr></table>';
-		echo $html;
-	}
-
-	function wpemp_post_custom_box($post) {
-		$html = "";
-		$html .="<script type='text/javascript'>
-		function showLevels(ele,div){
-			if(ele.options[ele.selectedIndex].value == 'yes'){
-				document.getElementById('levelsLabel').style.display = 'block';
-				document.getElementById(div).style.display = 'block';
-			}
-			else{document.getElementById(div).style.display = 'none';document.getElementById('levelsLabel').style.display = 'none';}
-		}
-		</script>";
-		$levelstring = get_option('wpemp_member_levels');
-		$levelarray = explode(',',$levelstring);
-		//$levelArray = unserialize($levelstring);
-		//die(var_dump($levelArray));
-		$levelcount = count($levelarray);
-		$setLevels = unserialize(get_post_meta($post->ID, '_wpemp_levels', true));
-		//die(var_dump($setLevels));
-		//$pos = strpos($setLevels, ',');
-		//if ($pos === false) {}
-		//else{$setLevels = explode(',',$setLevels);}
-		$vis = get_post_meta($post->ID, '_wpemp_dropdown', true);
-		
-		if($vis == 'yes'){$display = 'display:inline';$display2 = 'display:block';}
-		else{$display = 'display:none';$display2 = 'display:none';}
-
-		$wpemp_options = array('none'=> 'Default [Global Settings]', 'yes'=>'Visible to Members only', 'no'=>'Visible to Everyone');
-		$html .= '<input type="hidden" name="wpemp_nonce" id="wpemp_nonce" value="' . wp_create_nonce( plugin_basename(__FILE__) ) . '" />';
-		$html .= '<table border="0" width="95%" style="text-align:left">';
-
-		if(get_option('wpemp_show_post') == 'yes')
-			$html .= '<tr><th colspan="2">'.__('By default, Posts are currently visible only to members.').'</th></tr>';
-		else
-			$html .= '<tr><th colspan="2">'.__('By default, Posts are currently visible to everybody.').'</th></tr>';
-
-		$html .= '<tr><td> &raquo; <label for="wpemp_visibility">' . __("Set Posts visibility with wp-EasyMemberPro") . '</label>
-		<div id="levelsLabel" style="'.$display2.'">&raquo;&raquo; <label for="wpemp_levels">' . __("Membership Level Required") . '</label></div>
-		</td>';
-		$html .= '<td><select name="wpemp_dropdown" id="wpemp_dropdown" onChange= "showLevels(this,\'allLevels\')">';
-		foreach($wpemp_options as $id => $opt)
-		{
-			$html .= '<option value="'.$id.'" '. selected($id, get_post_meta($post->ID, '_wpemp_dropdown', true), false).'>'.$opt.'</option>';
-		}
-		$html .= '</select>';
-		$html .='<div id="allLevels">';
-		
-		if($levelcount > 0){
-			foreach($levelarray as $v){
-				// Level is broken into an array
-				// $level[0] is Id 
-				// $level 1 is name
-				//$days = 0;
-				$checked = "";
-				$level = explode(':',$v);
-				
-				if(is_array($setLevels)){
-					
-					foreach($setLevels as $k1=>$v1){
-						//$k1 is the Id Of The User Level
-						if($k1 == $level[0]){
-							// This is the right array
-							$checked = 'checked=checked';
-							// Grab The Days
-							//var_dump($v1);
-							foreach ($v1 as $k2=>$v2){
-								
-								if($k2 == 'days') $days[$k1] = $v2;
-							}
-						}
-						
-					}
-				}
-				$html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$level[0].'" style="'.$display.'"/>&nbsp;'.$level[1].'&nbsp;';
-				$html .= ' -> Membership Days Required <input type="text" name="wpemp_levels_days[]" size="7" value="'.$days[$level[0]].'"> <br />';
-
-			}
-		}
-		$html .='</div>';
-		$html .= '</td></tr>';
-		$html .= '<tr><td width="35%"> &raquo; <label for="wpemp_excerpt">' . __("Show Post Excerpts") . '</label></td>';
-		$html .= '<td width="65%"><input type="checkbox" name="wpemp_excerpt" id="wpemp_excerpt" value="yes" '. checked(get_post_meta($post->ID, '_wpemp_excerpt', true), 'yes', false).'/></td></tr></table>';
-		echo $html;}
-
-	function wpemp_add_custom_box() {
-		if( function_exists( 'add_meta_box' )) {
-			foreach (array('post','page') as $type) 
-				add_meta_box( 'wpemp_section', __( 'wp-EasyMemberPro Options'), array( &$this, 'wpemp_'.$type.'_custom_box'), $type, 'normal', 'high' );
-		}
-	}
+	
 
 	function wpemp_save_postdata( $post_id, $post ) {
 		if ( !wp_verify_nonce( $_POST['wpemp_nonce'], plugin_basename(__FILE__) )) {
@@ -1150,6 +1307,57 @@ $html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$lev
 		$html .= '</ul>';
 		return $html;
 		}
+		
+		
+	/*Handles Short Codes.*/
+	function wpemp_firstname(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sForename;
+	}
+	function wpemp_lastname(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sSurname;
+	}
+	function wpemp_email(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sEmail;
+	}
+	function wpemp_addr(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sAddr1;
+	}
+	function wpemp_addr2(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sAddr2;
+	}
+	function wpemp_addr3(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sAddr3;
+	}
+	function wpemp_city(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sTown;
+	}
+	function wpemp_state(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sCounty;
+	}
+	function wpemp_zipcode(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sPostcode;
+	}
+	function wpemp_country(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sCountry;
+	}
+	function wpemp_telephone(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sTelephone;
+	}
+	function wpemp_mobile(){
+		$data = unserialize($_SESSION['wpemp_userData']);
+		return $data->profile->sMobile;
+	}
 	
 	}
 $wp_EasyMemberPro = & new wp_EasyMemberPro();
