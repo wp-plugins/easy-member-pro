@@ -3,7 +3,7 @@
 Plugin Name: wp-EasyMemberPro!
 Plugin URI: http://www.easymemberpro.com
 Description: An Extension to Easy Member Pro, Allowing for the Viewing of Pages and Posts Based on Membership Levels, and drip feed options.
-Version: 1.1.2
+Version: 1.2.0
 Author: EasyMemberPro
 Author URI: http://www.easymemberpro.com
 */
@@ -425,7 +425,8 @@ check_admin_referer('wpemp-update-options');
 				<?php } ?>
 			</select>
 			';
-			<div id="allLevels">';
+			<div id="allLevels">
+			<table>
 				<?php 
 		if($levelcount > 0){
 			foreach($levelarray as $v){
@@ -453,17 +454,18 @@ check_admin_referer('wpemp-update-options');
 						
 					}
 				}?>
-				<input name="wpemp_levels[]" type="checkbox" <?php echo $checked ?> value="<?php echo $level[0] ?>" style=" <?php echo $display ?>"/>
-				&nbsp;<?php echo $level[1] ?>&nbsp;
-				-> Membership Days Required
-				<input type="text" name="wpemp_levels_days[]" size="7" value="<?php echo $days[$level[0]] ?>">
-				<br />
+				<tr>
+				<td>
+				<input name="wpemp_levels[]" type="checkbox" <?php echo $checked ?> value="<?php echo $level[0] ?>" style=" <?php echo $display ?>"/></td>
+				<td>
+				<?php echo $level[1] ?>-> Membership Days Required</td>
+				<td><span style="text-align:right"><input type="text" name="wpemp_levels_days[]" size="5" value="<?php echo $days[$level[0]] ?>"></span></td>
 				<?php
 
 			}
 		}
 		?>
-			</div></td>
+			</tr></table></div></td>
 	</tr>
 	<tr>
 		<td width="35%">&raquo;
@@ -545,8 +547,8 @@ check_admin_referer('wpemp-update-options');
 			$html .= '<option value="'.$id.'" '. selected($id, get_post_meta($post->ID, '_wpemp_dropdown', true), false).'>'.$opt.'</option>';
 		}
 		$html .= '</select>';
-		$html .='<div id="allLevels">';
-		
+		$html .= '<div id="allLevels">
+			<table>';
 		if($levelcount > 0){
 			foreach($levelarray as $v){
 				// Level is broken into an array
@@ -573,12 +575,17 @@ check_admin_referer('wpemp-update-options');
 						
 					}
 				}
-				$html .='<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$level[0].'" style="'.$display.'"/>&nbsp;'.$level[1].'&nbsp;';
-				$html .= ' -> Membership Days Required <input type="text" name="wpemp_levels_days[]" size="7" value="'.$days[$level[0]].'"> <br />';
+				$html .= '<tr>
+				<td>
+				<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$level[0].'" style=" '.$display.'"/></td>
+				<td>
+				'.$level[1] .'-> Membership Days Required</td>
+				<td><span style="text-align:right"><input type="text" name="wpemp_levels_days[]" size="5" value="'.$days[$level[0]].'"></span></td>';
 
 			}
 		}
-		$html .='</div>';
+		
+			$html .= '</tr></table></div>';
 		$html .= '</td></tr>';
 		$html .= '<tr><td width="35%"> &raquo; <label for="wpemp_excerpt">' . __("Show Post Excerpts") . '</label></td>';
 		$html .= '<td width="65%"><input type="checkbox" name="wpemp_excerpt" id="wpemp_excerpt" value="yes" '. checked(get_post_meta($post->ID, '_wpemp_excerpt', true), 'yes', false).'/></td></tr>';
