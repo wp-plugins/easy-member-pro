@@ -3,7 +3,7 @@ Contributors: Michael D Price
 Tags: login, Easy Member Pro
 Requires at least: 2.9.0
 Tested up to: 4.2
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 
 == Description ==
 
@@ -29,18 +29,14 @@ Wp-EasyMemberPro is a wordpress plugin that allows you to protect your posts, en
 Goto Settings -> WP EasyMemberPro -> Add the URL to your EasyMemberPro installation & update other options and press Save Changes;
 
 == Changelog ==
+= 1.2.1 =
+Fixed Bug Where Checkboxes Were Not Displaying When Nessessary.
 
-= 1.1.3 = Cleaned Up Page/Post Options Html.
-* Released Tuesday, June 3, 2015
-= 1.1.2 = Minor bug fix caused by php error reporting.
-* Released Tuesday, June 2, 2015
-
-= 1.1.1 =
-Added Logged In Member Tags, to allow displaying of EMP Member Details via shortcodes.
-
-= 1.1.0 =
+= 1.2.0 = 
 Added Drip Feed options
-* Released Saturday, May 30, 2015
+Added Logged In Member Tags, to allow displaying of EMP Member Details via shortcodes.
+Cleaned Up Page/Post Options Html.
+* Released Saturday, June 3th, 2015
 
 = 1.0.1 =
 * First release

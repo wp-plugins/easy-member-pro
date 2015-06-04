@@ -3,7 +3,7 @@
 Plugin Name: wp-EasyMemberPro!
 Plugin URI: http://www.easymemberpro.com
 Description: An Extension to Easy Member Pro, Allowing for the Viewing of Pages and Posts Based on Membership Levels, and drip feed options.
-Version: 1.2.0
+Version: 1.2.1
 Author: EasyMemberPro
 Author URI: http://www.easymemberpro.com
 */
@@ -425,7 +425,7 @@ check_admin_referer('wpemp-update-options');
 				<?php } ?>
 			</select>
 			';
-			<div id="allLevels">
+			<div id="allLevels" style="display:<?php echo (get_post_meta($post->ID, '_wpemp_dropdown', true) == 'yes')?'block':'none' ?>">
 			<table>
 				<?php 
 		if($levelcount > 0){
@@ -456,7 +456,7 @@ check_admin_referer('wpemp-update-options');
 				}?>
 				<tr>
 				<td>
-				<input name="wpemp_levels[]" type="checkbox" <?php echo $checked ?> value="<?php echo $level[0] ?>" style=" <?php echo $display ?>"/></td>
+				<input name="wpemp_levels[]" type="checkbox" <?php echo $checked ?> value="<?php echo $level[0] ?>"/></td>
 				<td>
 				<?php echo $level[1] ?>-> Membership Days Required</td>
 				<td><span style="text-align:right"><input type="text" name="wpemp_levels_days[]" size="5" value="<?php echo $days[$level[0]] ?>"></span></td>
@@ -547,7 +547,8 @@ check_admin_referer('wpemp-update-options');
 			$html .= '<option value="'.$id.'" '. selected($id, get_post_meta($post->ID, '_wpemp_dropdown', true), false).'>'.$opt.'</option>';
 		}
 		$html .= '</select>';
-		$html .= '<div id="allLevels">
+		$html .= 'style="display:'.(get_post_meta($post->ID, '_wpemp_dropdown', true) == 'yes')?'block':'none'.'">
+
 			<table>';
 		if($levelcount > 0){
 			foreach($levelarray as $v){
@@ -577,7 +578,7 @@ check_admin_referer('wpemp-update-options');
 				}
 				$html .= '<tr>
 				<td>
-				<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$level[0].'" style=" '.$display.'"/></td>
+				<input name="wpemp_levels[]" type="checkbox" '.$checked.' value="'.$level[0].'"/></td>
 				<td>
 				'.$level[1] .'-> Membership Days Required</td>
 				<td><span style="text-align:right"><input type="text" name="wpemp_levels_days[]" size="5" value="'.$days[$level[0]].'"></span></td>';
